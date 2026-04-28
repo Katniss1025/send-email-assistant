@@ -1,0 +1,10 @@
+# 凭证配置（含密码，不提交）
+email_config.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# OS
+.DS_Store

@@ -54,6 +54,7 @@ def get_default_config():
         "password": "",       # 邮箱密码或应用专用密码
         "sender_name": "",    # 显示名称
         "sender_email": "",   # 发件人地址（可与username不同）
+        "default_recipient": "",  # 默认收件人（不指定--to时使用）
         "timeout": 30,
         "_created_at": ""
     }
@@ -135,6 +136,8 @@ def init_config_interactive():
          "例如: 张三 / IT运维部 — 留空则不设置"),
         ("sender_email", "发件人邮箱地址", 
          "收件人看到的发件地址, 例如: zhangsan@company.com"),
+        ("default_recipient", "默认收件人邮箱 (可选)", 
+         "不指定收件人时自动发送到此地址，留空则每次必须指定收件人"),
     ]
     
     for key, label, hint in prompts:
@@ -195,6 +198,11 @@ def init_config_interactive():
     masked_user = config['username'][:3] + "***" + config['username'].split('@')[-1] if '@' in config['username'] else "***"
     print(f"   账号: {masked_user}")
     print(f"   发件人: {config.get('sender_name', '')} <{config['sender_email']}>")
+    default_to = config.get('default_recipient', '')
+    if default_to:
+        print(f"   默认收件人: {default_to}")
+    else:
+        print(f"   默认收件人: 未设置（每次发送需指定收件人）")
     print()
     
     # 测试连接
@@ -563,7 +571,7 @@ def _human_size(size_bytes):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='内网邮件发送工具 v1.0 — 通过SMTP发送带附件的企业邮件',
+        description='内网邮件发送工具 v1.1 — 通过SMTP发送带附件的企业邮件（支持默认收件人）',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
@@ -589,7 +597,8 @@ def main():
 """
     )
     
-    parser.add_argument('--to', '-t', help='收件人邮箱（多人用逗号分隔）')
+    parser.add_argument('--to', '-t', 
+                       help='收件人邮箱（多人用逗号分隔）。不指定则使用配置中的 default_recipient')
     parser.add_argument('--subject', '-s', '-j', help='邮件主题')
     parser.add_argument('--body', '-b', '-m', default='', help='邮件正文')
     parser.add_argument('--attachments', '-a', '--files', '-f', 
@@ -642,17 +651,29 @@ def main():
         sys.exit(0 if ok else 1)
     
     # ---- 发送模式 ----
-    if not args.to or not args.subject:
+    if not args.subject:
         parser.print_help()
-        print("\n❌ 错误: 必须指定收件人(--to)和主题(--subject)")
+        print("\n❌ 错误: 必须指定邮件主题(--subject)")
         sys.exit(1)
     
-    # 加载配置
+    # 加载配置（提前加载，用于获取 default_recipient）
     config = load_config(args.config)
     if config is None:
         print("❌ 未找到配置文件。")
         print("   请先运行: python3 send_email.py --init-config")
         print("   或指定配置文件: python3 send_email.py ... --config /path/to/config.json")
+        sys.exit(1)
+    
+    # 收件人：优先使用 --to 参数，否则回退到配置中的 default_recipient
+    if args.to:
+        to_raw = args.to
+    elif config.get('default_recipient', '').strip():
+        to_raw = config['default_recipient'].strip()
+        print(f"ℹ️ 未指定收件人，使用默认收件人: {to_raw}")
+    else:
+        parser.print_help()
+        print("\n❌ 错误: 必须指定收件人(--to)，或在配置中设置 default_recipient")
+        print("   设置方式: python3 send_email.py --init-config 重新配置，或手动编辑 email_config.json")
         sys.exit(1)
     
     # 验证配置
@@ -665,10 +686,10 @@ def main():
         sys.exit(1)
     
     # 解析收件人和附件
-    to_list = [addr.strip() for addr in args.to.split(',') if addr.strip()]
-    cc_list = [addr.strip() for addr in args.cc.split(',') if args.cc and addr.strip()] or None
-    bcc_list = [addr.strip() for addr in args.bcc.split(',') if args.bcc and addr.strip()] or None
-    attach_list = [p.strip() for p in args.attachments.split(',') if args.attachments and p.strip()] or None
+    to_list = [addr.strip() for addr in to_raw.split(',') if addr.strip()]
+    cc_list = [addr.strip() for addr in args.cc.split(',') if addr.strip()] if args.cc else None
+    bcc_list = [addr.strip() for addr in args.bcc.split(',') if addr.strip()] if args.bcc else None
+    attach_list = [p.strip() for p in args.attachments.split(',') if p.strip()] if args.attachments else None
     
     # 执行发送
     result = send_email(
