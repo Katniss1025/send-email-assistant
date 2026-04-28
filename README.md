@@ -5,6 +5,7 @@
 ![Skill Type](https://img.shields.io/badge/Type-WorkBuddy_Skill-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![Python](https://img.shields.io/badge/Python-3.7%2B-yellow)
+![Version](https://img.shields.io/badge/Version-v1.1-orange)
 
 ## ✨ 功能特性
 
@@ -14,6 +15,7 @@
 | 🔒 **内网适配** | 支持 SSL / TLS / STARTTLS / 无加密四种模式 |
 | 🌐 **中文友好** | 自动处理中文文件名编码（RFC 2047） |
 | 🚀 **首次引导** | 首次使用自动进入交互式配置向导 |
+| 📬 **默认收件人** | 可设置默认收件地址，发送时省略 `--to` 即自动使用 |
 | ✅ **连接测试** | 发送前可测试 SMTP 连通性 |
 | 📊 **状态返回** | 支持纯文本和 JSON 两种输出格式 |
 | 🔐 **安全存储** | 凭证本地保存，权限 600，仅所有者可读写 |
